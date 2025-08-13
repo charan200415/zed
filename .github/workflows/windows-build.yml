@@ -1,0 +1,37 @@
+name: Build Zed for Windows
+
+on:
+  workflow_dispatch: # run manually
+  push:              # or on every push
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v1
+        with:
+          cmake-version: '3.29.2' # latest stable at the time
+
+      - name: Install Visual Studio Build Tools
+        run: |
+          choco install visualstudio2022buildtools visualstudio2022-workload-vctools --package-parameters "--includeRecommended --includeOptional" -y
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Upload EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zed-windows
+          path: target/release/zed.exe
