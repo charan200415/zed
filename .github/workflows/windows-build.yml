@@ -1,51 +1,37 @@
-name: Build Zed for Windows
+name: Build Windows EXE
 
 on:
-  workflow_dispatch: # Manual trigger
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch: # Allows you to trigger manually
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
 
-      - name: Enable Long Paths in Git and Windows
-        run: |
-          git config --system core.longpaths true
-          New-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem" `
-            -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+    - name: Install Visual Studio Build Tools with Spectre libs
+      shell: cmd
+      run: |
+        "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" modify ^
+          --installPath "C:\Program Files\Microsoft Visual Studio\2022\BuildTools" ^
+          --add Microsoft.VisualStudio.Workload.VCTools ^
+          --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+          --add Microsoft.VisualStudio.Component.VC.Spectre.Mitigated ^
+          --includeRecommended --quiet --wait --norestart
 
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v1
-        with:
-          cmake-version: '3.29.2'
+    - name: Build in release mode
+      run: cargo build --release
 
-      - name: Install Visual Studio Build Tools with Spectre libs
-        run: |
-          choco install visualstudio2022buildtools `
-            visualstudio2022-workload-vctools `
-            visualstudio2022-workload-nativedesktop `
-            visualstudio2022componentgroup-native-desktop-core `
-            microsoft-visualstudio-component-vc-spectre `
-            --package-parameters "--includeRecommended --includeOptional" -y
-
-      - name: Build Release
-        run: cargo build --release
-
-      - name: Upload EXE Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: zed-windows
-          path: target/release/zed.exe
+    - name: Upload compiled exe
+      uses: actions/upload-artifact@v4
+      with:
+        name: zed-exe
+        path: target/release/*.exe
